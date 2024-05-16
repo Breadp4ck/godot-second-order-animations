@@ -1,0 +1,15 @@
+[configuration]
+entry_symbol = "gdext_rust_init"
+compatibility_minimum = 4.2
+
+[libraries]
+windows.release.x86_64 = "windows/godot-second-order-animations_windows-x64.so"
+windows.debug.x86_64 = "windows/godot-second-order-animations_windows-x64_editor.so"
+
+linux.release.x86_64 = "linux/godot-second-order-animations_linux-x64.so"
+linux.debug.x86_64 = "linux/godot-second-order-animations_linux-x64_editor.so"
+
+macos.debug = "macos/godot-second-order-animations_macos-x64_editor.dylib"
+macos.release = "macos/godot-second-order-animations_macos-x64.dylib"
+macos.debug.arm64 = "macos/godot-second-order-animations_macos-arm64_editor.dylib"
+macos.release.arm64 = "macos/godot-second-order-animations_macos-arm64.dylib"

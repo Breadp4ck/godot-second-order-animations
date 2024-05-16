@@ -1,0 +1,16 @@
+[package]
+name = "godot-second-order-animations"
+version = "0.1.0"
+authors = [
+  "Alexander Begichev <iii103@outlook.com>",
+]
+edition = "2021"
+license = "MIT"
+readme = "readme.md"
+keywords = ["gamedev", "godot"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
