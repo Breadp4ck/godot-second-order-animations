@@ -96,3 +96,4 @@ macro_rules! generate_systems_for_simple_types {
 
 generate_systems_for_simple_types!(SecondOrderSystemVector3, Vector3, Vector3::ZERO);
 generate_systems_for_simple_types!(SecondOrderSystemVector2, Vector2, Vector2::ZERO);
+generate_systems_for_simple_types!(SecondOrderSystemFloat, f32, 0.0);

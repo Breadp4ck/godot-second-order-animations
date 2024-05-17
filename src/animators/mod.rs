@@ -116,8 +116,8 @@ macro_rules! generate_animator {
 
             fn ready(&mut self) {
                 self.system.update_initial_values(
-                    self.target.as_ref().unwrap().get_position(),
-                    self.depend.as_ref().unwrap().get_position(),
+                    $get_node_value(self.target.as_ref().unwrap()),
+                    $get_node_value(self.depend.as_ref().unwrap()),
                     $system_inner_type_default,
                 );
 
@@ -145,10 +145,37 @@ generate_animator!(
 );
 
 generate_animator!(
+    AnimatorScale3D,
+    Node3D,
+    SecondOrderSystemVector3,
+    Vector3::ZERO,
+    |node: &Gd<Node3D>| { node.get_scale() },
+    |node: &mut Gd<Node3D>, value: Vector3| { node.set_scale(value) }
+);
+
+generate_animator!(
     AnimatorPosition2D,
     Node2D,
     SecondOrderSystemVector2,
     Vector2::ZERO,
     |node: &Gd<Node2D>| { node.get_position() },
     |node: &mut Gd<Node2D>, value: Vector2| { node.set_position(value) }
+);
+
+generate_animator!(
+    AnimatorScale2D,
+    Node2D,
+    SecondOrderSystemVector2,
+    Vector2::ZERO,
+    |node: &Gd<Node2D>| { node.get_scale() },
+    |node: &mut Gd<Node2D>, value: Vector2| { node.set_scale(value) }
+);
+
+generate_animator!(
+    AnimatorSkew2D,
+    Node2D,
+    SecondOrderSystemFloat,
+    0.0,
+    |node: &Gd<Node2D>| { node.get_skew() },
+    |node: &mut Gd<Node2D>, value: f32| { node.set_skew(value) }
 );
