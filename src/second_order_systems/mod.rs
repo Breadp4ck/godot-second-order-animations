@@ -1,9 +1,9 @@
 use std::f32::consts::PI;
 
-use godot::builtin::{Vector2, Vector3};
+use godot::builtin::{Quaternion, Vector2, Vector3};
 
 macro_rules! generate_systems_for_simple_types {
-    ( $name:ident, $type:ty, $default:expr ) => {
+    ( $name:ident, $type:ty, $default:expr, $interpolation_step:ident ) => {
         pub struct $name {
             period: f32,
             damping: f32,
@@ -75,14 +75,9 @@ macro_rules! generate_systems_for_simple_types {
 
             #[inline]
             fn interpolation_step(&mut self, x: $type, d: f32) {
-                let xd = (x - self.xp) / d;
                 let (k1, k2, k3) = self.k;
-
-                let k2_stable = f32::max(k2, 1.1 * (d * d + 0.5 * d * k1));
-
-                self.xp = x;
-                self.y += d * self.yd;
-                self.yd = self.yd + d * (x + k3 * xd - self.y - k1 * self.yd) / k2_stable;
+                (self.xp, self.y, self.yd) =
+                    $interpolation_step(k1, k2, k3, x, self.xp, self.y, self.yd, d);
             }
 
             #[inline]
@@ -94,6 +89,74 @@ macro_rules! generate_systems_for_simple_types {
     };
 }
 
-generate_systems_for_simple_types!(SecondOrderSystemVector3, Vector3, Vector3::ZERO);
-generate_systems_for_simple_types!(SecondOrderSystemVector2, Vector2, Vector2::ZERO);
-generate_systems_for_simple_types!(SecondOrderSystemFloat, f32, 0.0);
+macro_rules! generate_default_interpolation_step {
+    ($name:ident, $type:ty) => {
+        #[inline]
+        fn $name(
+            k1: f32,
+            k2: f32,
+            k3: f32,
+            x: $type,
+            mut xp: $type,
+            mut y: $type,
+            mut yd: $type,
+            d: f32,
+        ) -> ($type, $type, $type) {
+            let xd = (x - xp) / d;
+
+            let k2_stable = f32::max(k2, 1.1 * (d * d + 0.5 * d * k1));
+
+            xp = x;
+            y += d * yd;
+            yd = yd + d * (x + k3 * xd - y - k1 * yd) / k2_stable;
+
+            (xp, y, yd)
+        }
+    };
+}
+
+#[inline]
+fn interpolation_step_quaternion(
+    k1: f32,
+    k2: f32,
+    k3: f32,
+    x: Quaternion,
+    mut xp: Quaternion,
+    mut y: Quaternion,
+    mut yd: Quaternion,
+    d: f32,
+) -> (Quaternion, Quaternion, Quaternion) {
+    let xd = (x * xp.inverse()).log() / d;
+
+    let k2_stable = f32::max(k2, 1.1 * (d * d + 0.5 * d * k1));
+
+    xp = x;
+    y = (d * yd).to_exp() * y;
+    yd = yd + d * ((x * y.inverse()).log() + k3 * xd - k1 * yd) / k2_stable;
+
+    (xp, y, yd)
+}
+
+generate_default_interpolation_step!(interpolation_step_vector3, Vector3);
+generate_default_interpolation_step!(interpolation_step_vector2, Vector2);
+generate_default_interpolation_step!(interpolation_step_float, f32);
+
+generate_systems_for_simple_types!(
+    SecondOrderSystemVector3,
+    Vector3,
+    Vector3::ZERO,
+    interpolation_step_vector3
+);
+generate_systems_for_simple_types!(
+    SecondOrderSystemVector2,
+    Vector2,
+    Vector2::ZERO,
+    interpolation_step_vector2
+);
+generate_systems_for_simple_types!(SecondOrderSystemFloat, f32, 0.0, interpolation_step_float);
+generate_systems_for_simple_types!(
+    SecondOrderSystemQuaternion,
+    Quaternion,
+    Quaternion::default(),
+    interpolation_step_quaternion
+);

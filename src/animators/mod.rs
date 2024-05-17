@@ -145,6 +145,15 @@ generate_animator!(
 );
 
 generate_animator!(
+    AnimatorRotation3D,
+    Node3D,
+    SecondOrderSystemQuaternion,
+    Quaternion::default(),
+    |node: &Gd<Node3D>| { node.get_quaternion() },
+    |node: &mut Gd<Node3D>, value: Quaternion| { node.set_quaternion(value) }
+);
+
+generate_animator!(
     AnimatorScale3D,
     Node3D,
     SecondOrderSystemVector3,
@@ -160,6 +169,15 @@ generate_animator!(
     Vector2::ZERO,
     |node: &Gd<Node2D>| { node.get_position() },
     |node: &mut Gd<Node2D>, value: Vector2| { node.set_position(value) }
+);
+
+generate_animator!(
+    AnimatorRotation2D,
+    Node2D,
+    SecondOrderSystemFloat,
+    0.0,
+    |node: &Gd<Node2D>| { node.get_rotation() },
+    |node: &mut Gd<Node2D>, value: f32| { node.set_rotation(value) }
 );
 
 generate_animator!(
