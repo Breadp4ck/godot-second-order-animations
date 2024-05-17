@@ -9,7 +9,7 @@ pub enum InterpolationMode {
     Physics,
 }
 
-macro_rules! generate_basic_animators {
+macro_rules! generate_animator {
     ($node_name:ident, $node_type:ty, $system_type:ty, $system_inner_type_default:expr, $get_node_value:expr, $set_node_value:expr) => {
         #[derive(GodotClass)]
         #[class(base=Node)]
@@ -135,7 +135,7 @@ macro_rules! generate_basic_animators {
     };
 }
 
-generate_basic_animators!(
+generate_animator!(
     AnimatorPosition3D,
     Node3D,
     SecondOrderSystemVector3,
@@ -144,7 +144,7 @@ generate_basic_animators!(
     |node: &mut Gd<Node3D>, value: Vector3| { node.set_position(value) }
 );
 
-generate_basic_animators!(
+generate_animator!(
     AnimatorPosition2D,
     Node2D,
     SecondOrderSystemVector2,
