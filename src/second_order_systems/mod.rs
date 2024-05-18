@@ -120,12 +120,16 @@ fn interpolation_step_quaternion(
     k1: f32,
     k2: f32,
     k3: f32,
-    x: Quaternion,
+    mut x: Quaternion,
     mut xp: Quaternion,
     mut y: Quaternion,
     mut yd: Quaternion,
     d: f32,
 ) -> (Quaternion, Quaternion, Quaternion) {
+    if x.dot(y) < 0.0 {
+        x = -x;
+    }
+
     let xd = (x * xp.inverse()).log() / d;
 
     let k2_stable = f32::max(k2, 1.1 * (d * d + 0.5 * d * k1));
