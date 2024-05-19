@@ -87,6 +87,14 @@ macro_rules! generate_animator {
                 }
             }
 
+            fn _update_initial_values(&mut self) {
+                self.system.update_initial_values(
+                    $get_node_value(self.target.as_ref().unwrap()),
+                    $get_node_value(self.depend.as_ref().unwrap()),
+                    $system_inner_type_default,
+                );
+            }
+
             #[inline]
             fn _update(&mut self, delta: f64) {
                 let input = $get_node_value(self.target.as_ref().unwrap());
@@ -115,12 +123,7 @@ macro_rules! generate_animator {
             }
 
             fn ready(&mut self) {
-                self.system.update_initial_values(
-                    $get_node_value(self.target.as_ref().unwrap()),
-                    $get_node_value(self.depend.as_ref().unwrap()),
-                    $system_inner_type_default,
-                );
-
+                self._update_initial_values();
                 self._update_interpolation_process();
             }
 
