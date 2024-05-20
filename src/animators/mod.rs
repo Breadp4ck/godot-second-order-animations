@@ -195,7 +195,7 @@ macro_rules! generate_animator {
             }
 
             // The process and physics_process methods are used when the node has no script attached.
-            // The on_notification method is used otherwise. Relative to https://github.com/godot-rust/gdext/issues/111
+            // The on_notification method is used otherwise. Related to https://github.com/godot-rust/gdext/issues/111
 
             fn process(&mut self, delta: f64) {
                 if !self.active || (Engine::singleton().is_editor_hint() && !self.run_in_editor) {
