@@ -136,7 +136,10 @@ fn interpolation_step_quaternion(
 
     xp = x;
     y = (d * yd).to_exp() * y;
-    yd = yd + d * ((x * y.inverse()).log() + k3 * xd - k1 * yd) / k2_stable;
+
+    // We normalized (x * y.inverse()) beacuse there is calculation error,
+    // when quaternion rotations are very close.
+    yd = yd + d * ((x * y.inverse()).normalized().log() + k3 * xd - k1 * yd) / k2_stable;
 
     (xp, y, yd)
 }
