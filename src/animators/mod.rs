@@ -112,7 +112,7 @@ macro_rules! generate_animator {
                 Self {
                     depend: None,
                     target: None,
-                    active: false,
+                    active: true,
                     interpolation_mode: InterpolationMode::Physics,
                     period,
                     damping,
