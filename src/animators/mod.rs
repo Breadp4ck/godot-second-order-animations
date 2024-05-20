@@ -1,4 +1,7 @@
-use godot::{engine::notify::NodeNotification, prelude::*};
+use godot::{
+    engine::{notify::NodeNotification, Engine},
+    prelude::*,
+};
 
 use crate::second_order_systems::*;
 
@@ -9,19 +12,47 @@ pub enum InterpolationMode {
     Physics,
 }
 
+#[derive(Debug)]
+enum AnimatorError {
+    NodeNotSpecified(&'static str),
+}
+
+impl std::fmt::Display for AnimatorError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            AnimatorError::NodeNotSpecified(node) => {
+                write!(f, "The {} node is not specified.", node)
+            }
+        }
+    }
+}
+
+impl std::error::Error for AnimatorError {}
+
 macro_rules! generate_animator {
+    // This macro generates animator classes for different node properties and types.
+    // Parameters:
+    // $node_name: The name of the generated animator class.
+    // $node_type: The type of the target node (e.g., Node3D, Node2D).
+    // $system_type: The type of the second-order system used for interpolation.
+    // $system_inner_type_default: The default value for the system's inner type (e.g., Vector3::ZERO).
+    // $get_node_value: A closure to get the current value from the target node.
+    // $set_node_value: A closure to set the new value to the target node.
     ($node_name:ident, $node_type:ty, $system_type:ty, $system_inner_type_default:expr, $get_node_value:expr, $set_node_value:expr) => {
         #[derive(GodotClass)]
-        #[class(base=Node)]
+        #[class(tool, base=Node)]
         struct $node_name {
             #[export]
-            depend: Option<Gd<$node_type>>,
+            follower: Option<Gd<$node_type>>,
             #[export]
             target: Option<Gd<$node_type>>,
 
             #[export]
             #[var(get, set = set_active)]
             active: bool,
+            #[export]
+            #[var(get, set = set_run_in_editor)]
+            run_in_editor: bool,
             #[export]
             #[var(get, set = set_interpolation_mode)]
             interpolation_mode: InterpolationMode,
@@ -47,6 +78,20 @@ macro_rules! generate_animator {
             fn set_active(&mut self, value: bool) {
                 if self.active != value {
                     self.active = value;
+                }
+
+                if self.active && self._validate().is_ok() {
+                    self._update_initial_values();
+                }
+            }
+            #[func]
+            fn set_run_in_editor(&mut self, value: bool) {
+                if self.run_in_editor != value {
+                    self.run_in_editor = value;
+                }
+
+                if self.active && self._validate().is_ok() {
+                    self._update_initial_values();
                 }
             }
             #[func]
@@ -74,16 +119,58 @@ macro_rules! generate_animator {
             fn _update_initial_values(&mut self) {
                 self.system.update_initial_values(
                     $get_node_value(self.target.as_ref().unwrap()),
-                    $get_node_value(self.depend.as_ref().unwrap()),
+                    $get_node_value(self.follower.as_ref().unwrap()),
                     $system_inner_type_default,
                 );
             }
 
-            #[inline]
             fn _update(&mut self, delta: f64) {
                 let input = $get_node_value(self.target.as_ref().unwrap());
                 let output = self.system.update(input, delta);
-                $set_node_value(self.depend.as_mut().unwrap(), output);
+                $set_node_value(self.follower.as_mut().unwrap(), output);
+            }
+
+            fn _validate(&self) -> Result<(), AnimatorError> {
+                if self.target.is_none() {
+                    return Err(AnimatorError::NodeNotSpecified("target"));
+                }
+                if self.follower.is_none() {
+                    return Err(AnimatorError::NodeNotSpecified("follower"));
+                }
+
+                Ok(())
+            }
+
+            fn _proceed_notification(
+                &mut self,
+                notification: NodeNotification,
+            ) -> Result<(), AnimatorError> {
+                if !self.active || (Engine::singleton().is_editor_hint() && !self.run_in_editor) {
+                    return Ok(());
+                }
+
+                match (notification, self.interpolation_mode) {
+                    (NodeNotification::Process, InterpolationMode::Process) => {
+                        self._validate()?;
+
+                        let delta = self.base().get_process_delta_time();
+                        self._update(delta);
+                    }
+                    (NodeNotification::PhysicsProcess, InterpolationMode::Physics) => {
+                        self._validate()?;
+
+                        let delta = self.base().get_physics_process_delta_time();
+                        self._update(delta);
+                    }
+                    (NodeNotification::Ready, _) => {
+                        self._validate()?;
+                        self.base_mut().set_process(true);
+                        self._update_initial_values();
+                    }
+                    _ => {}
+                }
+
+                Ok(())
             }
         }
 
@@ -94,9 +181,10 @@ macro_rules! generate_animator {
                 let system = <$system_type>::new(period, damping, response);
 
                 Self {
-                    depend: None,
+                    follower: None,
                     target: None,
                     active: true,
+                    run_in_editor: false,
                     interpolation_mode: InterpolationMode::Physics,
                     period,
                     damping,
@@ -106,25 +194,38 @@ macro_rules! generate_animator {
                 }
             }
 
-            fn ready(&mut self) {
-                self._update_initial_values();
-            }
+            // The process and physics_process methods are used when the node has no script attached.
+            // The on_notification method is used otherwise. Relative to https://github.com/godot-rust/gdext/issues/111
 
-            fn on_notification(&mut self, notification: NodeNotification) {
-                if !self.active {
+            fn process(&mut self, delta: f64) {
+                if !self.active || (Engine::singleton().is_editor_hint() && !self.run_in_editor) {
                     return;
                 }
 
-                match (notification, self.interpolation_mode) {
-                    (NodeNotification::Process, InterpolationMode::Process) => {
-                        let delta = self.base().get_process_delta_time();
-                        self._update(delta);
-                    }
-                    (NodeNotification::PhysicsProcess, InterpolationMode::Physics) => {
-                        let delta = self.base().get_physics_process_delta_time();
-                        self._update(delta);
-                    }
-                    _ => {}
+                if let Err(err) = self._validate() {
+                    godot_warn!("Animator error: {}", err);
+                    return;
+                }
+
+                self._update(delta);
+            }
+
+            fn physics_process(&mut self, delta: f64) {
+                if !self.active || (Engine::singleton().is_editor_hint() && !self.run_in_editor) {
+                    return;
+                }
+
+                if let Err(err) = self._validate() {
+                    godot_warn!("Animator error: {}", err);
+                    return;
+                }
+
+                self._update(delta);
+            }
+
+            fn on_notification(&mut self, notification: NodeNotification) {
+                if let Err(err) = self._proceed_notification(notification) {
+                    godot_warn!("Animator error: {}", err);
                 }
             }
         }
