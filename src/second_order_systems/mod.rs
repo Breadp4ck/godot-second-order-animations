@@ -1,9 +1,6 @@
 use std::f32::consts::PI;
 
-use godot::{
-    builtin::{Quaternion, Vector2, Vector3},
-    log::godot_print,
-};
+use godot::builtin::{Quaternion, Vector2, Vector3};
 
 macro_rules! generate_systems_for_simple_types {
     ( $name:ident, $type:ty, $default:expr, $interpolation_step:ident ) => {
