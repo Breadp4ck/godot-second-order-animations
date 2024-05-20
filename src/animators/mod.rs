@@ -1,8 +1,8 @@
-use godot::prelude::*;
+use godot::{engine::notify::NodeNotification, prelude::*};
 
 use crate::second_order_systems::*;
 
-#[derive(GodotConvert, Var, Export, PartialEq, Eq, Debug)]
+#[derive(GodotConvert, Var, Export, PartialEq, Eq, Debug, Copy, Clone)]
 #[godot(via = GString)]
 pub enum InterpolationMode {
     Process,
@@ -47,14 +47,12 @@ macro_rules! generate_animator {
             fn set_active(&mut self, value: bool) {
                 if self.active != value {
                     self.active = value;
-                    self._update_interpolation_process();
                 }
             }
             #[func]
             fn set_interpolation_mode(&mut self, value: InterpolationMode) {
                 if self.interpolation_mode != value {
                     self.interpolation_mode = value;
-                    self._update_interpolation_process();
                 }
             }
             #[func]
@@ -71,20 +69,6 @@ macro_rules! generate_animator {
             fn set_response(&mut self, value: f32) {
                 self.response = value;
                 self.system.update_response(self.response);
-            }
-
-            fn _update_interpolation_process(&mut self) {
-                let active = self.active;
-                match self.interpolation_mode {
-                    InterpolationMode::Process => {
-                        self.base_mut().set_process(active);
-                        self.base_mut().set_physics_process(false);
-                    }
-                    InterpolationMode::Physics => {
-                        self.base_mut().set_process(false);
-                        self.base_mut().set_physics_process(active);
-                    }
-                }
             }
 
             fn _update_initial_values(&mut self) {
@@ -124,15 +108,24 @@ macro_rules! generate_animator {
 
             fn ready(&mut self) {
                 self._update_initial_values();
-                self._update_interpolation_process();
             }
 
-            fn process(&mut self, delta: f64) {
-                self._update(delta);
-            }
+            fn on_notification(&mut self, notification: NodeNotification) {
+                if !self.active {
+                    return;
+                }
 
-            fn physics_process(&mut self, delta: f64) {
-                self._update(delta);
+                match (notification, self.interpolation_mode) {
+                    (NodeNotification::Process, InterpolationMode::Process) => {
+                        let delta = self.base().get_process_delta_time();
+                        self._update(delta);
+                    }
+                    (NodeNotification::PhysicsProcess, InterpolationMode::Physics) => {
+                        let delta = self.base().get_physics_process_delta_time();
+                        self._update(delta);
+                    }
+                    _ => {}
+                }
             }
         }
     };
