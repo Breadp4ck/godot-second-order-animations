@@ -1,6 +1,9 @@
 use std::f32::consts::PI;
 
-use godot::builtin::{Quaternion, Vector2, Vector3};
+use godot::{
+    builtin::{Quaternion, Vector2, Vector3},
+    log::godot_print,
+};
 
 macro_rules! generate_systems_for_simple_types {
     ( $name:ident, $type:ty, $default:expr, $interpolation_step:ident ) => {
@@ -130,16 +133,15 @@ fn interpolation_step_quaternion(
         x = -x;
     }
 
-    let xd = (x * xp.inverse()).log() / d;
+    // We normalized (x * xp.inverse()) and (x * y.inverse()) beacuse there is calculation error,
+    // when quaternion rotations are very close. Normalization is not the fastest solution, but it works.
 
+    let xd = (x * xp.inverse()).normalized().log() / d;
     let k2_stable = f32::max(k2, 1.1 * (d * d + 0.5 * d * k1));
 
     xp = x;
     y = (d * yd).to_exp() * y;
-
-    // We normalized (x * y.inverse()) beacuse there is calculation error,
-    // when quaternion rotations are very close.
-    yd = yd + d * ((x * y.inverse()).normalized().log() + k3 * xd - k1 * yd) / k2_stable;
+    yd += d * ((x * y.inverse()).normalized().log() + k3 * xd - k1 * yd) / k2_stable;
 
     (xp, y, yd)
 }
